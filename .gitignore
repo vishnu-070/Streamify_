@@ -1,0 +1,11 @@
+# Backend
+backend/node_modules/
+backend/.env
+
+# Frontend (extra safety)
+frontend/node_modules/
+frontend/dist
+
+# General
+.env
+node_modules/

@@ -1,0 +1,183 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserCheckIcon, BellIcon, UserPlusIcon, LoaderIcon } from 'lucide-react';
+import { axiosInstance } from '../lib/axios';
+import { useAuth } from '../hooks/useAuth';
+import Layout from '../components/Layout';
+import FriendCard from '../components/FriendCard';
+import UserCard from '../components/UserCard';
+import toast from 'react-hot-toast';
+
+const HomePage = ({ onThemeChange, currentTheme }) => {
+  const { authUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Fetch my friends
+  const { data: friends = [], isLoading: friendsLoading } = useQuery({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/users/Friends');
+      return res.data;
+    },
+  });
+
+  // Fetch recommended users
+  const { data: recommendedUsers = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['recommendedUsers'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/users/');
+      return res.data.users;
+    },
+  });
+
+  // Fetch outgoing requests (to know which users already received a request)
+  const { data: outgoingData } = useQuery({
+    queryKey: ['outgoingRequests'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/users/outgoing-friend-requests');
+      return res.data.outgoingReqs;
+    },
+  });
+
+  // Fetch incoming friend requests
+  const { data: friendRequestsData } = useQuery({
+    queryKey: ['friendRequests'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/users/friend-requests');
+      return res.data;
+    },
+  });
+
+  const { mutate: acceptRequest, isPending: acceptPending } = useMutation({
+    mutationFn: (requestId) => axiosInstance.put(`/users/friend-request/${requestId}/accept`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      toast.success('Friend request accepted!');
+    },
+    onError: () => toast.error('Failed to accept request'),
+  });
+
+  const outgoingIds = new Set((outgoingData || []).map((r) => r.recipient?._id));
+  const incomingRequests = friendRequestsData?.incomingReqs || [];
+
+  return (
+    <Layout showSidebar onThemeChange={onThemeChange} currentTheme={currentTheme}>
+      <div className="container mx-auto p-6 space-y-10 max-w-6xl">
+
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <div />
+          {/* Friend Requests Button */}
+          <div className="dropdown dropdown-end">
+            <button tabIndex={0} className="btn btn-outline btn-sm gap-2 rounded-full">
+              <UserPlusIcon className="size-4" />
+              Friend Requests
+              {incomingRequests.length > 0 && (
+                <span className="badge badge-primary badge-sm">{incomingRequests.length}</span>
+              )}
+            </button>
+            <div
+              tabIndex={0}
+              className="dropdown-content bg-base-200 border border-base-300 rounded-xl shadow-2xl p-4 w-80 mt-2 z-50"
+            >
+              <h3 className="font-semibold mb-3 text-base">Incoming Requests</h3>
+              {incomingRequests.length === 0 ? (
+                <p className="text-sm text-base-content/60 text-center py-3">No pending requests</p>
+              ) : (
+                <div className="space-y-3">
+                  {incomingRequests.map((req) => (
+                    <div key={req._id} className="flex items-center gap-3">
+                      <div className="avatar">
+                        <div className="w-10 rounded-full">
+                          <img src={req.sender?.profilePic} alt={req.sender?.fullName} />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{req.sender?.fullName}</p>
+                        <div className="flex gap-1 mt-0.5 flex-wrap">
+                          {req.sender?.nativeLanguage && (
+                            <span className="badge badge-xs">🗣️ {req.sender.nativeLanguage}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => acceptRequest(req._id)}
+                        disabled={acceptPending}
+                        className="btn btn-primary btn-xs rounded-full"
+                      >
+                        {acceptPending ? (
+                          <LoaderIcon className="size-3 animate-spin" />
+                        ) : (
+                          <UserCheckIcon className="size-3" />
+                        )}
+                        Accept
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* YOUR FRIENDS */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Your Friends</h2>
+          {friendsLoading ? (
+            <div className="flex gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="skeleton h-40 w-48 rounded-xl" />
+              ))}
+            </div>
+          ) : friends.length === 0 ? (
+            <div className="text-center py-10 text-base-content/50">
+              <UserCheckIcon className="size-12 mx-auto mb-3 opacity-30" />
+              <p>No friends yet. Discover language partners below!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {friends.map((friend) => (
+                <FriendCard key={friend._id} friend={friend} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* MEET NEW LEARNERS */}
+        <section>
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold">Meet New Learners</h2>
+            <p className="text-base-content/60 text-sm mt-1">
+              Discover perfect language exchange partners based on your profile
+            </p>
+          </div>
+
+          {usersLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="skeleton h-56 rounded-xl" />
+              ))}
+            </div>
+          ) : recommendedUsers.length === 0 ? (
+            <div className="text-center py-10 text-base-content/50">
+              <UserPlusIcon className="size-12 mx-auto mb-3 opacity-30" />
+              <p>No new learners to discover right now</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recommendedUsers.map((user) => (
+                <UserCard
+                  key={user._id}
+                  user={user}
+                  hasRequested={outgoingIds.has(user._id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </Layout>
+  );
+};
+
+export default HomePage;
