@@ -6,6 +6,7 @@ import Layout from '../components/Layout';
 import FriendCard from '../components/FriendCard';
 import UserCard from '../components/UserCard';
 import toast from 'react-hot-toast';
+import { getAvatarUrl } from '../lib/avatars';
 
 const HomePage = ({ onThemeChange, currentTheme }) => {
   const { authUser } = useAuth();
@@ -52,6 +53,8 @@ const HomePage = ({ onThemeChange, currentTheme }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['recommendedUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['outgoingRequests'] });
       toast.success('Friend request accepted!');
     },
     onError: () => toast.error('Failed to accept request'),
@@ -89,7 +92,7 @@ const HomePage = ({ onThemeChange, currentTheme }) => {
                     <div key={req._id} className="flex items-center gap-3">
                       <div className="avatar">
                         <div className="w-10 rounded-full">
-                          <img src={req.sender?.profilePic} alt={req.sender?.fullName} />
+                          <img src={getAvatarUrl(req.sender?.profilePic, req.sender?.fullName)} alt={req.sender?.fullName} />
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">

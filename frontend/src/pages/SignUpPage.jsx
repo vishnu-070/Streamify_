@@ -97,18 +97,18 @@ const SignUpPage = () => {
 
             {/* Terms */}
             <div className="form-control">
-              <label className="label cursor-pointer justify-start gap-3">
+              <label className="flex items-center gap-3 cursor-pointer py-2">
                 <input
                   type="checkbox"
-                  className="checkbox checkbox-primary checkbox-sm"
+                  className="checkbox checkbox-primary checkbox-sm shrink-0"
                   checked={form.agreedToTerms}
                   onChange={(e) => setForm((f) => ({ ...f, agreedToTerms: e.target.checked }))}
                 />
-                <span className="label-text text-sm">
+                <span className="label-text text-sm select-none text-left">
                   I agree to the{' '}
-                  <span className="text-primary hover:underline cursor-pointer">terms of service</span>{' '}
+                  <span className="text-primary hover:underline font-semibold">terms of service</span>{' '}
                   and{' '}
-                  <span className="text-primary hover:underline cursor-pointer">privacy policy</span>
+                  <span className="text-primary hover:underline font-semibold">privacy policy</span>
                 </span>
               </label>
             </div>

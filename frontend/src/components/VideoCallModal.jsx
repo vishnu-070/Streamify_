@@ -22,12 +22,14 @@ const CallUI = ({ onLeave }) => {
     useCameraState,
     useMicrophoneState,
     useScreenShareState,
+    useParticipants,
   } = useCallStateHooks();
 
   const callingState = useCallCallingState();
   const { isMute: isCameraMuted } = useCameraState();
   const { isMute: isMicMuted } = useMicrophoneState();
   const { isSharing: isScreenSharing } = useScreenShareState();
+  const participants = useParticipants();
 
   // Auto-leave when call ends
   useEffect(() => {
@@ -43,6 +45,33 @@ const CallUI = ({ onLeave }) => {
           <Loader className="size-10 animate-spin mx-auto text-primary" />
           <p>Joining call...</p>
         </div>
+      </div>
+    );
+  }
+
+  const otherParticipants = participants.filter((p) => p.userId !== call?.currentUserId);
+  const hasPartnerJoined = otherParticipants.length > 0;
+
+  if (callingState === CallingState.JOINED && !hasPartnerJoined) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-950 text-white space-y-6">
+        <div className="relative flex items-center justify-center">
+          <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute" />
+          <div className="w-24 h-24 rounded-full bg-primary/30 flex items-center justify-center relative z-10 animate-pulse">
+            <Video className="size-10 text-primary" />
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <h3 className="text-xl font-bold">Calling Partner...</h3>
+          <p className="text-sm text-gray-400">Waiting for them to accept and join the video call</p>
+        </div>
+        <button
+          onClick={onLeave}
+          className="btn btn-circle btn-lg btn-error text-white hover:bg-red-700 mt-4"
+          title="Cancel Call"
+        >
+          <PhoneOff className="size-6" />
+        </button>
       </div>
     );
   }

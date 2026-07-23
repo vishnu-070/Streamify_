@@ -4,13 +4,14 @@ import { ShipWheelIcon, EyeIcon, EyeOffIcon, LoaderIcon } from 'lucide-react';
 import { useLogin } from '../hooks/useLogin';
 
 const LoginPage = () => {
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '', agreedToTerms: false });
   const [showPassword, setShowPassword] = useState(false);
   const { login, isPending } = useLogin();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    login(form);
+    if (!form.agreedToTerms) return;
+    login({ email: form.email, password: form.password });
   };
 
   return (
@@ -71,11 +72,29 @@ const LoginPage = () => {
               </div>
             </div>
 
+            {/* Terms */}
+            <div className="form-control">
+              <label className="flex items-center gap-3 cursor-pointer py-2">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-primary checkbox-sm shrink-0"
+                  checked={form.agreedToTerms}
+                  onChange={(e) => setForm((f) => ({ ...f, agreedToTerms: e.target.checked }))}
+                />
+                <span className="label-text text-sm select-none text-left">
+                  I agree to the{' '}
+                  <span className="text-primary hover:underline font-semibold">terms of service</span>{' '}
+                  and{' '}
+                  <span className="text-primary hover:underline font-semibold">privacy policy</span>
+                </span>
+              </label>
+            </div>
+
             {/* Submit */}
             <button
               type="submit"
               className="btn btn-primary w-full rounded-full mt-2"
-              disabled={isPending}
+              disabled={isPending || !form.agreedToTerms}
             >
               {isPending ? (
                 <>

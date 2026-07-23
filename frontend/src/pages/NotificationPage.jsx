@@ -3,6 +3,7 @@ import { BellIcon, UserCheckIcon, ClockIcon } from 'lucide-react';
 import { axiosInstance } from '../lib/axios';
 import Layout from '../components/Layout';
 import { formatDistanceToNow } from 'date-fns';
+import { getAvatarUrl } from '../lib/avatars';
 
 const NotificationPage = ({ onThemeChange, currentTheme }) => {
   const { data, isLoading } = useQuery({
@@ -51,7 +52,7 @@ const NotificationPage = ({ onThemeChange, currentTheme }) => {
                     <div className="avatar">
                       <div className="w-12 rounded-full">
                         <img
-                          src={req.recipient?.profilePic}
+                          src={getAvatarUrl(req.recipient?.profilePic, req.recipient?.fullName)}
                           alt={req.recipient?.fullName}
                         />
                       </div>

@@ -12,6 +12,7 @@ const UserCard = ({ user, hasRequested }) => {
     mutationFn: () => axiosInstance.post(`/users/friend-request/${user._id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['outgoingRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['recommendedUsers'] });
       toast.success(`Friend request sent to ${user.fullName}!`);
     },
     onError: (error) => {
