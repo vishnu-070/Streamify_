@@ -74,20 +74,21 @@ const LoginPage = () => {
 
             {/* Terms */}
             <div className="form-control">
-              <label className="flex items-center gap-3 cursor-pointer py-2">
+              <div className="flex items-center gap-3 py-2">
                 <input
+                  id="login-agreed-to-terms"
                   type="checkbox"
                   className="checkbox checkbox-primary checkbox-sm shrink-0"
                   checked={form.agreedToTerms}
                   onChange={(e) => setForm((f) => ({ ...f, agreedToTerms: e.target.checked }))}
                 />
-                <span className="label-text text-sm select-none text-left">
+                <label htmlFor="login-agreed-to-terms" className="label-text text-sm select-none text-left cursor-pointer">
                   I agree to the{' '}
                   <span className="text-primary hover:underline font-semibold">terms of service</span>{' '}
                   and{' '}
                   <span className="text-primary hover:underline font-semibold">privacy policy</span>
-                </span>
-              </label>
+                </label>
+              </div>
             </div>
 
             {/* Submit */}
