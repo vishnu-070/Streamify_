@@ -16,6 +16,7 @@ import {
   MessageUI,
   useMessageContext,
   useChannelStateContext,
+  ComponentProvider,
 } from 'stream-chat-react';
 import 'stream-chat-react/dist/css/index.css';
 import { VideoIcon, LoaderIcon, ShipWheelIcon, BellIcon, LogOutIcon, Palette } from 'lucide-react';
@@ -298,13 +299,15 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
             {/* Message Area */}
             <div className="flex-1 overflow-hidden">
               {activeChannel ? (
-                <Channel channel={activeChannel} Message={CustomMessage}>
-                  <Window>
-                    <CustomChannelHeader />
-                    <MessageList />
-                    <MessageComposer />
-                  </Window>
-                  <Thread />
+                <Channel channel={activeChannel}>
+                  <ComponentProvider value={{ MessageUI: CustomMessage }}>
+                    <Window>
+                      <CustomChannelHeader />
+                      <MessageList />
+                      <MessageComposer />
+                    </Window>
+                    <Thread />
+                  </ComponentProvider>
                 </Channel>
               ) : (
                 <div className="h-full flex items-center justify-center text-base-content/40">
