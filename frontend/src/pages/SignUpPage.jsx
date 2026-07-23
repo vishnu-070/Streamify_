@@ -20,7 +20,7 @@ const SignUpPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base-100 flex items-center justify-center p-4">
+    <div data-theme="emerald" className="min-h-screen bg-base-100 flex items-center justify-center p-4">
       <div className="flex rounded-2xl overflow-hidden w-full max-w-4xl bg-base-200 shadow-2xl border border-base-300">
         {/* LEFT PANEL — Form */}
         <div className="flex-1 p-8 flex flex-col">
@@ -97,20 +97,22 @@ const SignUpPage = () => {
 
             {/* Terms */}
             <div className="form-control">
-              <div className="flex items-center gap-3 py-2">
+              <div 
+                className="flex items-center gap-3 py-2 cursor-pointer select-none"
+                onClick={() => setForm((f) => ({ ...f, agreedToTerms: !f.agreedToTerms }))}
+              >
                 <input
-                  id="signup-agreed-to-terms"
                   type="checkbox"
-                  className="checkbox checkbox-primary checkbox-sm shrink-0"
+                  className="checkbox checkbox-primary checkbox-sm shrink-0 pointer-events-none"
                   checked={form.agreedToTerms}
-                  onChange={(e) => setForm((f) => ({ ...f, agreedToTerms: e.target.checked }))}
+                  readOnly
                 />
-                <label htmlFor="signup-agreed-to-terms" className="label-text text-sm select-none text-left cursor-pointer">
+                <span className="label-text text-sm text-left">
                   I agree to the{' '}
                   <span className="text-primary hover:underline font-semibold">terms of service</span>{' '}
                   and{' '}
                   <span className="text-primary hover:underline font-semibold">privacy policy</span>
-                </label>
+                </span>
               </div>
             </div>
 

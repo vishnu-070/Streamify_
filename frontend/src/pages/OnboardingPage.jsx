@@ -52,7 +52,7 @@ const OnboardingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base-100 flex items-center justify-center p-4">
+    <div data-theme="emerald" className="min-h-screen bg-base-100 flex items-center justify-center p-4">
       <div className="card bg-base-200 shadow-2xl border border-base-300 w-full max-w-2xl">
         <div className="card-body p-8">
           {/* Header */}
