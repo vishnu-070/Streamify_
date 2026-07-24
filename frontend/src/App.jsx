@@ -91,25 +91,53 @@ const App = () => {
       const invite = event.message.attachments?.find((a) => a.type === 'video_call_invite');
       if (invite) {
         if (event.message.user.id !== streamClient.userID) {
-          let declined = [];
-          try {
-            declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
-          } catch {}
-
-          if (!declined.includes(invite.callId)) {
+          const status = invite.status || 'started';
+          if (status === 'started') {
             setIncomingCall({
               callId: invite.callId,
+              messageId: event.message.id,
               senderName: event.message.user.name || event.message.user.id,
               senderAvatar: event.message.user.image,
               userId: event.message.user.id,
+            });
+          } else {
+            setIncomingCall((prev) => {
+              if (prev && prev.callId === invite.callId) {
+                return null;
+              }
+              return prev;
             });
           }
         }
       }
     };
 
+    const handleMessageUpdate = (event) => {
+      const invite = event.message.attachments?.find((a) => a.type === 'video_call_invite');
+      if (invite) {
+        const status = invite.status || 'started';
+        if (status !== 'started') {
+          setIncomingCall((prev) => {
+            if (prev && prev.callId === invite.callId) {
+              return null;
+            }
+            return prev;
+          });
+        }
+      }
+    };
+
     const handleSignalingEvent = (event) => {
       if (event.type === 'call_declined') {
+        let declined = [];
+        try {
+          declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
+        } catch {}
+        if (!declined.includes(event.callId)) {
+          declined.push(event.callId);
+          localStorage.setItem('declined-calls', JSON.stringify(declined));
+        }
+
         setIncomingCall((prev) => {
           if (prev && prev.callId === event.callId) {
             return null;
@@ -121,11 +149,13 @@ const App = () => {
 
     streamClient.on(handleEvent);
     streamClient.on('message.new', handleNewMessage);
+    streamClient.on('message.updated', handleMessageUpdate);
     streamClient.on('call_declined', handleSignalingEvent);
 
     return () => {
       streamClient.off(handleEvent);
       streamClient.off('message.new', handleNewMessage);
+      streamClient.off('message.updated', handleMessageUpdate);
       streamClient.off('call_declined', handleSignalingEvent);
     };
   }, [authUser, queryClient]);
@@ -191,7 +221,7 @@ const App = () => {
             </button>
             <button
               onClick={() => {
-                navigate(`/chat/${incomingCall.userId}?joinCall=true`);
+                navigate(`/chat/${incomingCall.userId}?joinCall=true&callId=${incomingCall.callId}`);
                 setIncomingCall(null);
               }}
               className="btn btn-success btn-xs rounded-xl px-4 gap-1 font-bold h-9 text-white"

@@ -39,16 +39,22 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
   const { userId: targetUserId } = useParams();
   const [searchParams] = useSearchParams();
   const joinCallParam = searchParams.get('joinCall') === 'true';
+  const callIdParam = searchParams.get('callId');
+  const messageIdParam = searchParams.get('messageId');
 
   const [activeChannel, setActiveChannel] = useState(null);
   const [inCall, setInCall] = useState(false);
+  const [activeCallId, setActiveCallId] = useState(null);
+  const [activeCallMessageId, setActiveCallMessageId] = useState(null);
   const clientReady = !!streamClient.userID;
 
   useEffect(() => {
-    if (activeChannel && joinCallParam) {
+    if (activeChannel && joinCallParam && callIdParam && messageIdParam) {
+      setActiveCallId(callIdParam);
+      setActiveCallMessageId(messageIdParam);
       setInCall(true);
     }
-  }, [activeChannel, joinCallParam]);
+  }, [activeChannel, joinCallParam, callIdParam, messageIdParam]);
 
   // Fetch Stream token (used for both chat AND video)
   const { data: tokenData } = useQuery({
@@ -91,22 +97,27 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
   // Send a call invite message to the channel so the other user receives a Join prompt
   const startVideoCall = async () => {
     if (!activeChannel) return;
-    const sanitizedChannelId = activeChannel.id.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    const callId = `call-${sanitizedChannelId}`;
+    const callId = `call-${crypto.randomUUID()}`;
     try {
-      await activeChannel.sendMessage({
-        text: '📞 Video Call Started',
+      const response = await activeChannel.sendMessage({
+        text: '📹 Video Call Started',
         attachments: [
           {
             type: 'video_call_invite',
+            status: 'started',
             callId: callId,
           },
         ],
       });
+      const messageId = response.message.id;
+      setActiveCallId(callId);
+      setActiveCallMessageId(messageId);
+      localStorage.setItem('active-call-id', callId);
+      localStorage.setItem('active-call-message-id', messageId);
+      setInCall(true);
     } catch (err) {
       console.error('Error sending video call invite:', err);
     }
-    setInCall(true);
   };
 
   // Custom channel header with video call button aligned via flexbox
@@ -170,13 +181,66 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
       }
     });
 
-    const isDeclined = invite ? declined.includes(invite.callId) : false;
+    // Real-time listener to update the card state instantly if call is declined/ended
+    useEffect(() => {
+      if (!streamClient || !invite) return;
+
+      const handleSignaling = (event) => {
+        if (event.type === 'call_declined' && event.callId === invite.callId) {
+          setDeclined((prev) => {
+            if (!prev.includes(invite.callId)) {
+              return [...prev, invite.callId];
+            }
+            return prev;
+          });
+        }
+      };
+
+      streamClient.on(handleSignaling);
+      return () => {
+        streamClient.off(handleSignaling);
+      };
+    }, [invite]);
+
+    const inviteStatus = invite?.status || 'started';
+    const isDeclined = inviteStatus === 'declined' || (invite ? declined.includes(invite.callId) : false);
+    const isCancelled = inviteStatus === 'cancelled';
+    const isEnded = inviteStatus === 'ended';
+    const isConnected = inviteStatus === 'connected';
+
     const isMyMessage = message.user?.id === streamClient.userID;
 
-    const handleDecline = (callId) => {
+    const handleDecline = async (callId) => {
       const updated = [...declined, callId];
       setDeclined(updated);
       localStorage.setItem('declined-calls', JSON.stringify(updated));
+
+      // Notify the sender that the call was declined
+      if (streamClient && message.user?.id) {
+        streamClient.sendUserCustomEvent(message.user.id, {
+          type: 'call_declined',
+          callId: callId,
+        }).catch(console.error);
+      }
+
+      // Update the message in-place in Stream Chat so everyone gets the new status
+      if (streamClient) {
+        try {
+          await streamClient.updateMessage({
+            id: message.id,
+            text: '❌ Video Call Declined',
+            attachments: [
+              {
+                type: 'video_call_invite',
+                status: 'declined',
+                callId: callId,
+              },
+            ],
+          });
+        } catch (err) {
+          console.error('Error updating message in handleDecline:', err);
+        }
+      }
     };
 
     if (invite) {
@@ -189,34 +253,64 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
           }`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-primary ${
               isMyMessage ? 'ml-auto bg-primary/10' : 'mx-0 bg-base-300'
-            } ${!isDeclined ? 'animate-pulse' : ''}`}>
+            } ${(!isDeclined && !isCancelled && !isEnded && !isConnected) ? 'animate-pulse' : ''}`}>
               <VideoIcon className="size-5" />
             </div>
             
             <div className={isMyMessage ? 'text-right' : 'text-left'}>
               <h4 className="font-bold text-sm">
-                {isMyMessage ? 'Video Call Started' : 'Video Call Invitation'}
+                {isDeclined 
+                  ? 'Video Call Declined' 
+                  : isCancelled
+                    ? 'Video Call Cancelled'
+                    : isEnded
+                      ? 'Video Call Ended'
+                      : isConnected
+                        ? 'Video Call Connected'
+                        : isMyMessage 
+                          ? 'Video Call Started' 
+                          : 'Video Call Invitation'}
               </h4>
               <p className="text-xs text-base-content/60 mt-1">
-                {isMyMessage ? 'Waiting for partner to join...' : `Started by ${message.user?.name || 'User'}`}
+                {isDeclined 
+                  ? 'This call has been declined.' 
+                  : isCancelled
+                    ? 'This call was cancelled.'
+                    : isEnded
+                      ? 'This call has ended.'
+                      : isConnected
+                        ? 'Users are in the call.'
+                        : isMyMessage 
+                          ? 'Waiting for partner to join...' 
+                          : `Started by ${message.user?.name || 'User'}`}
               </p>
             </div>
 
             {/* Actions */}
-            {isMyMessage ? (
+            {isDeclined || isCancelled || isEnded || isConnected ? (
               <button
-                onClick={() => setInCall(true)}
+                disabled
+                className="btn btn-ghost btn-sm rounded-full w-full border border-base-300 text-base-content/40 cursor-not-allowed text-center justify-center flex"
+              >
+                {isDeclined 
+                  ? 'Call Declined' 
+                  : isCancelled
+                    ? 'Call Cancelled'
+                    : isEnded
+                      ? 'Call Ended'
+                      : 'Call in Progress'}
+              </button>
+            ) : isMyMessage ? (
+              <button
+                onClick={() => {
+                  setActiveCallId(invite.callId);
+                  setActiveCallMessageId(message.id);
+                  setInCall(true);
+                }}
                 className="btn btn-primary btn-sm rounded-full w-full gap-1.5"
               >
                 <VideoIcon className="size-3.5" />
                 Join Call
-              </button>
-            ) : isDeclined ? (
-              <button
-                disabled
-                className="btn btn-ghost btn-sm rounded-full w-full border border-base-300 text-base-content/40 cursor-not-allowed"
-              >
-                Call Declined
               </button>
             ) : (
               <div className="flex gap-2 w-full">
@@ -227,7 +321,11 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
                   Decline
                 </button>
                 <button
-                  onClick={() => setInCall(true)}
+                  onClick={() => {
+                    setActiveCallId(invite.callId);
+                    setActiveCallMessageId(message.id);
+                    setInCall(true);
+                  }}
                   className="btn btn-primary btn-sm rounded-full flex-1 gap-1 font-semibold"
                 >
                   <VideoIcon className="size-3.5" />
@@ -339,13 +437,21 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
       </div>
 
       {/* Real Video Call — shown as fullscreen overlay */}
-      {inCall && activeChannel && tokenData?.token && (
+      {inCall && activeChannel && tokenData?.token && activeCallId && activeCallMessageId && (
         <VideoCallModal
           authUser={authUser}
           token={tokenData.token}
           channelId={activeChannel.id}
+          callId={activeCallId}
+          messageId={activeCallMessageId}
           targetUserId={targetUserId}
-          onClose={() => setInCall(false)}
+          onClose={() => {
+            setInCall(false);
+            setActiveCallId(null);
+            setActiveCallMessageId(null);
+            localStorage.removeItem('active-call-id');
+            localStorage.removeItem('active-call-message-id');
+          }}
         />
       )}
     </div>

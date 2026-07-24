@@ -16,7 +16,7 @@ import { streamClient } from '../lib/stream';
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY || 'n5psykq5nde3';
 
 // Inner component that has access to call state hooks and useCall
-const CallUI = ({ onLeave }) => {
+const CallUI = ({ onLeave, callId, messageId }) => {
   const call = useCall();
   const {
     useCallCallingState,
@@ -46,10 +46,18 @@ const CallUI = ({ onLeave }) => {
   useEffect(() => {
     if (otherParticipants.length > 0) {
       setPartnerHasJoined(true);
+      // Update message status to connected in-place in Stream Chat
+      if (streamClient && callId && messageId) {
+        streamClient.updateMessage({
+          id: messageId,
+          text: '🟢 Video Call Connected',
+          attachments: [{ type: 'video_call_invite', status: 'connected', callId }],
+        }).catch(console.error);
+      }
     } else if (partnerHasJoined && otherParticipants.length === 0) {
       onLeave();
     }
-  }, [otherParticipants, partnerHasJoined, onLeave]);
+  }, [otherParticipants, partnerHasJoined, onLeave, callId, messageId]);
 
   if (callingState === CallingState.JOINING) {
     return (
@@ -185,7 +193,7 @@ const CallUI = ({ onLeave }) => {
   );
 };
 
-const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) => {
+const VideoCallModal = ({ authUser, token, channelId, callId, messageId, targetUserId, onClose }) => {
   const [videoClient, setVideoClient] = useState(null);
   const [call, setCall] = useState(null);
   const [error, setError] = useState(null);
@@ -200,8 +208,6 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
     }
 
     // Send call_declined event to target partner to clean up their call screen immediately
-    const sanitizedChannelId = channelId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    const callId = `call-${sanitizedChannelId}`;
     if (streamClient && targetUserId) {
       streamClient.sendUserCustomEvent(targetUserId, {
         type: 'call_declined',
@@ -209,16 +215,23 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
       }).catch(console.error);
     }
 
+    // Update message status to ended in-place in Stream Chat
+    if (streamClient && messageId) {
+      streamClient.updateMessage({
+        id: messageId,
+        text: '📞 Video Call Ended',
+        attachments: [{ type: 'video_call_invite', status: 'ended', callId }],
+      }).catch(console.error);
+    }
+
     onClose();
-  }, [call, onClose, targetUserId, channelId]);
+  }, [call, onClose, targetUserId, callId, messageId]);
 
   // Signaling listener for real-time declined / ended calls synchronization
   useEffect(() => {
     if (!streamClient) return;
 
     const handleSignaling = (event) => {
-      const sanitizedChannelId = channelId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-      const callId = `call-${sanitizedChannelId}`;
       if (event.type === 'call_declined' && event.callId === callId) {
         setError('Call Declined');
         setTimeout(() => {
@@ -232,10 +245,10 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
     return () => {
       streamClient.off(handleSignaling);
     };
-  }, [channelId, handleLeave]);
+  }, [callId, handleLeave]);
 
   useEffect(() => {
-    if (!authUser || !token || !channelId) return;
+    if (!authUser || !token || !channelId || !callId) return;
 
     let client;
     let activeCall;
@@ -255,9 +268,6 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
 
         setVideoClient(client);
 
-        // Use the channel ID as the call ID so both users join the same call
-        const sanitizedChannelId = channelId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-        const callId = `call-${sanitizedChannelId}`;
         activeCall = client.call('default', callId);
 
         // Create or join the call
@@ -280,7 +290,7 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
         client.disconnectUser().catch(console.error);
       }
     };
-  }, [authUser, token, channelId]);
+  }, [authUser, token, channelId, callId]);
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
@@ -324,7 +334,7 @@ const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) =
         ) : (
           <StreamVideo client={videoClient}>
             <StreamCall call={call}>
-              <CallUI onLeave={handleLeave} />
+              <CallUI onLeave={handleLeave} callId={callId} messageId={messageId} />
             </StreamCall>
           </StreamVideo>
         )}
