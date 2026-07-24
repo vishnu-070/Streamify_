@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Route, Routes, Navigate, useNavigate } from 'react-router';
+import { Route, Routes, Navigate, useNavigate, useLocation } from 'react-router';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { streamClient } from './lib/stream';
+import { axiosInstance } from './lib/axios';
+import { getAvatarUrl } from './lib/avatars';
 import toast from 'react-hot-toast';
 
 import HomePage from './pages/HomePage.jsx';
@@ -20,7 +22,53 @@ const App = () => {
   const { authUser, isLoading } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const [incomingCall, setIncomingCall] = useState(null);
+
+  // Fetch Stream token globally
+  const { data: tokenData } = useQuery({
+    queryKey: ['streamToken'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/chat/token');
+      return res.data;
+    },
+    enabled: !!authUser,
+  });
+
+  // Global user connection to Stream Chat for accurate presence status
+  useEffect(() => {
+    if (!authUser) {
+      if (streamClient.userID) {
+        streamClient.disconnectUser().catch(console.error);
+      }
+      return;
+    }
+
+    if (!tokenData?.token) return;
+
+    const connectUser = async () => {
+      try {
+        if (streamClient.userID === authUser._id) return;
+
+        if (streamClient.userID) {
+          await streamClient.disconnectUser();
+        }
+
+        await streamClient.connectUser(
+          {
+            id: authUser._id,
+            name: authUser.fullName,
+            image: getAvatarUrl(authUser.profilePic, authUser.fullName),
+          },
+          tokenData.token
+        );
+      } catch (err) {
+        console.error('Error connecting Stream user globally:', err);
+      }
+    };
+
+    connectUser();
+  }, [authUser, tokenData]);
 
   useEffect(() => {
     if (!authUser) return;
@@ -60,12 +108,25 @@ const App = () => {
       }
     };
 
+    const handleSignalingEvent = (event) => {
+      if (event.type === 'call_declined') {
+        setIncomingCall((prev) => {
+          if (prev && prev.callId === event.callId) {
+            return null;
+          }
+          return prev;
+        });
+      }
+    };
+
     streamClient.on(handleEvent);
     streamClient.on('message.new', handleNewMessage);
+    streamClient.on('call_declined', handleSignalingEvent);
 
     return () => {
       streamClient.off(handleEvent);
       streamClient.off('message.new', handleNewMessage);
+      streamClient.off('call_declined', handleSignalingEvent);
     };
   }, [authUser, queryClient]);
 
@@ -84,10 +145,12 @@ const App = () => {
   // Shared props for pages that need theme control
   const themeProps = { onThemeChange: handleThemeChange, currentTheme: theme };
 
+  const showCallPopup = incomingCall && location.pathname === '/';
+
   return (
     <div className="min-h-screen" data-theme={theme}>
-      {incomingCall && (
-        <div className="fixed top-4 right-4 z-50 bg-base-200 border-2 border-primary rounded-2xl p-4 shadow-2xl w-80 max-w-sm transition-all duration-300">
+      {showCallPopup && (
+        <div className="fixed bottom-4 right-4 z-50 bg-base-200 border-2 border-primary rounded-2xl p-4 shadow-2xl w-80 max-w-sm transition-all duration-300">
           <div className="flex items-center gap-3">
             <div className="avatar ring-2 ring-primary ring-offset-2 rounded-full relative">
               <div className="w-12 rounded-full">
@@ -111,6 +174,15 @@ const App = () => {
                 } catch {}
                 declined.push(incomingCall.callId);
                 localStorage.setItem('declined-calls', JSON.stringify(declined));
+                
+                // Notify the caller that Dev declined the call
+                if (streamClient && incomingCall.userId) {
+                  streamClient.sendUserCustomEvent(incomingCall.userId, {
+                    type: 'call_declined',
+                    callId: incomingCall.callId,
+                  }).catch(console.error);
+                }
+                
                 setIncomingCall(null);
               }}
               className="btn btn-error btn-xs rounded-xl px-4 gap-1 font-bold h-9"

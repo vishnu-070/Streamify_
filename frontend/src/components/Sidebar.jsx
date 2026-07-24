@@ -55,12 +55,8 @@ const Sidebar = () => {
                 <img src={getAvatarUrl(authUser.profilePic, authUser.fullName)} alt={authUser.fullName} />
               </div>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden text-left">
               <p className="text-sm font-medium truncate">{authUser.fullName}</p>
-              <p className="text-xs text-success flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-success"></span>
-                Online
-              </p>
             </div>
           </div>
         </div>

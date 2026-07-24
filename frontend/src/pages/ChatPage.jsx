@@ -40,9 +40,9 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
   const [searchParams] = useSearchParams();
   const joinCallParam = searchParams.get('joinCall') === 'true';
 
-  const [clientReady, setClientReady] = useState(false);
   const [activeChannel, setActiveChannel] = useState(null);
   const [inCall, setInCall] = useState(false);
+  const clientReady = !!streamClient.userID;
 
   useEffect(() => {
     if (activeChannel && joinCallParam) {
@@ -60,32 +60,7 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
     enabled: !!authUser,
   });
 
-  // Connect Stream Chat user
-  useEffect(() => {
-    if (!authUser || !tokenData?.token) return;
 
-    const connectUser = async () => {
-      try {
-        if (streamClient.userID) {
-          setClientReady(true);
-          return;
-        }
-        await streamClient.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: getAvatarUrl(authUser.profilePic, authUser.fullName),
-          },
-          tokenData.token
-        );
-        setClientReady(true);
-      } catch (err) {
-        console.error('Error connecting Stream user:', err);
-      }
-    };
-
-    connectUser();
-  }, [authUser, tokenData]);
 
   // Create / get channel when a targetUserId is provided (from Message button)
   useEffect(() => {
@@ -369,6 +344,7 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
           authUser={authUser}
           token={tokenData.token}
           channelId={activeChannel.id}
+          targetUserId={targetUserId}
           onClose={() => setInCall(false)}
         />
       )}

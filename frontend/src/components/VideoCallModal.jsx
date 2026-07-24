@@ -11,6 +11,7 @@ import {
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { X, Loader, Mic, MicOff, Video, VideoOff, Monitor, PhoneOff } from 'lucide-react';
 import { getAvatarUrl } from '../lib/avatars';
+import { streamClient } from '../lib/stream';
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY || 'n5psykq5nde3';
 
@@ -31,12 +32,24 @@ const CallUI = ({ onLeave }) => {
   const { isSharing: isScreenSharing } = useScreenShareState();
   const participants = useParticipants();
 
+  const [partnerHasJoined, setPartnerHasJoined] = useState(false);
+
   // Auto-leave when call ends
   useEffect(() => {
     if (callingState === CallingState.LEFT) {
       onLeave();
     }
   }, [callingState, onLeave]);
+
+  const otherParticipants = participants.filter((p) => p.userId !== call?.currentUserId);
+
+  useEffect(() => {
+    if (otherParticipants.length > 0) {
+      setPartnerHasJoined(true);
+    } else if (partnerHasJoined && otherParticipants.length === 0) {
+      onLeave();
+    }
+  }, [otherParticipants, partnerHasJoined, onLeave]);
 
   if (callingState === CallingState.JOINING) {
     return (
@@ -49,7 +62,6 @@ const CallUI = ({ onLeave }) => {
     );
   }
 
-  const otherParticipants = participants.filter((p) => p.userId !== call?.currentUserId);
   const hasPartnerJoined = otherParticipants.length > 0;
 
   if (callingState === CallingState.JOINED && !hasPartnerJoined) {
@@ -173,10 +185,54 @@ const CallUI = ({ onLeave }) => {
   );
 };
 
-const VideoCallModal = ({ authUser, token, channelId, onClose }) => {
+const VideoCallModal = ({ authUser, token, channelId, targetUserId, onClose }) => {
   const [videoClient, setVideoClient] = useState(null);
   const [call, setCall] = useState(null);
   const [error, setError] = useState(null);
+
+  const handleLeave = useCallback(async () => {
+    if (call) {
+      try {
+        await call.leave();
+      } catch (err) {
+        console.error('Error leaving call:', err);
+      }
+    }
+
+    // Send call_declined event to target partner to clean up their call screen immediately
+    const sanitizedChannelId = channelId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const callId = `call-${sanitizedChannelId}`;
+    if (streamClient && targetUserId) {
+      streamClient.sendUserCustomEvent(targetUserId, {
+        type: 'call_declined',
+        callId: callId,
+      }).catch(console.error);
+    }
+
+    onClose();
+  }, [call, onClose, targetUserId, channelId]);
+
+  // Signaling listener for real-time declined / ended calls synchronization
+  useEffect(() => {
+    if (!streamClient) return;
+
+    const handleSignaling = (event) => {
+      const sanitizedChannelId = channelId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const callId = `call-${sanitizedChannelId}`;
+      if (event.type === 'call_declined' && event.callId === callId) {
+        setError('Call Declined');
+        setTimeout(() => {
+          handleLeave();
+        }, 2000);
+      }
+    };
+
+    streamClient.on(handleSignaling);
+
+    return () => {
+      streamClient.off(handleSignaling);
+    };
+  }, [channelId, handleLeave]);
 
   useEffect(() => {
     if (!authUser || !token || !channelId) return;
@@ -226,17 +282,6 @@ const VideoCallModal = ({ authUser, token, channelId, onClose }) => {
     };
   }, [authUser, token, channelId]);
 
-  const handleLeave = useCallback(async () => {
-    if (call) {
-      try {
-        await call.leave();
-      } catch (err) {
-        console.error('Error leaving call:', err);
-      }
-    }
-    onClose();
-  }, [call, onClose]);
-
   return (
     <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
       {/* Header */}
@@ -253,13 +298,17 @@ const VideoCallModal = ({ authUser, token, channelId, onClose }) => {
       {/* Call area */}
       <div className="flex-1 overflow-hidden">
         {error ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-white space-y-4 p-6 max-w-sm">
-              <p className="text-red-400 font-medium">Failed to start call</p>
-              <p className="text-gray-400 text-sm">{error}</p>
+          <div className="flex items-center justify-center h-full bg-gray-950">
+            <div className="text-center text-white space-y-4 p-6 max-w-sm border border-gray-800 rounded-2xl bg-gray-900 shadow-2xl">
+              <p className="text-red-400 font-bold text-xl">
+                {error === 'Call Declined' ? 'Call Declined' : 'Failed to start call'}
+              </p>
+              <p className="text-gray-400 text-sm">
+                {error === 'Call Declined' ? 'The call partner declined or left the conversation.' : error}
+              </p>
               <button
-                onClick={onClose}
-                className="btn btn-primary rounded-full w-full"
+                onClick={handleLeave}
+                className="btn btn-error rounded-xl w-full font-bold h-10 mt-2 text-white"
               >
                 Close
               </button>
