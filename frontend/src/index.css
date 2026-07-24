@@ -3,24 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  /* Premium Dark Theme Overrides */
-  [data-theme="night"], 
-  [data-theme="dark"], 
-  [data-theme="black"],
-  [data-theme="luxury"],
-  [data-theme="dracula"] {
-    --b1: 20deg 12% 8%;      /* Rich warm charcoal/dark chocolate base background */
-    --b2: 20deg 12% 6%;      /* Slightly darker background for panels */
-    --b3: 20deg 12% 10%;     /* Slightly lighter for components */
-    --bc: 30deg 10% 90%;     /* Warm off-white text */
-    
-    --p: 142deg 70% 45%;     /* Premium Emerald Green primary accent */
-    --pc: 142deg 70% 95%;    /* Light green text on primary */
-    
-    --s: 32deg 90% 50%;      /* Warm orange/amber secondary accent */
-    --sc: 32deg 90% 95%;
-  }
-
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
