@@ -19,7 +19,7 @@ import {
   ComponentProvider,
 } from 'stream-chat-react';
 import 'stream-chat-react/dist/css/index.css';
-import { VideoIcon, LoaderIcon, ShipWheelIcon, BellIcon, LogOutIcon, Palette } from 'lucide-react';
+import { VideoIcon, LoaderIcon, ShipWheelIcon, BellIcon, LogOutIcon, Palette, ArrowLeft } from 'lucide-react';
 import VideoCallModal from '../components/VideoCallModal';
 import { getAvatarUrl } from '../lib/avatars';
 
@@ -139,6 +139,9 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
     return (
       <div className="flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 h-16 shrink-0 w-full z-10">
         <div className="flex items-center gap-3">
+          <Link to="/" className="btn btn-ghost btn-circle btn-sm mr-1" title="Go back">
+            <ArrowLeft className="size-5 text-base-content" />
+          </Link>
           <div className="avatar">
             <div className="w-10 rounded-full ring-2 ring-primary/20">
               <img src={displayImage} alt={displayName} />
@@ -264,21 +267,11 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
       {/* Chat UI */}
       <div className="flex-1 overflow-hidden">
         <Chat client={streamClient} theme="str-chat__theme-dark">
-          <div className="flex h-full">
-            {/* Channel List */}
-            <div className="w-72 border-r border-base-300 shrink-0 overflow-y-auto">
-              <ChannelList
-                filters={{ type: 'messaging', members: { $in: [authUser._id] } }}
-                sort={{ last_message_at: -1 }}
-                options={{ state: true, presence: true, limit: 30 }}
-                customActiveChannel={activeChannel}
-              />
-            </div>
-
-            {/* Message Area */}
-            <div className="flex-1 overflow-hidden">
+          <div className="flex h-full w-full">
+            {/* Message Area (Full Width) */}
+            <div className="flex-1 overflow-hidden h-full w-full">
               {activeChannel ? (
-                <Channel channel={activeChannel}>
+                <Channel channel={activeChannel} key={activeChannel.cid}>
                   <ComponentProvider value={{ MessageUI: CustomMessage }}>
                     <Window>
                       <CustomChannelHeader />
@@ -289,9 +282,9 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
                   </ComponentProvider>
                 </Channel>
               ) : (
-                <div className="h-full flex items-center justify-center text-base-content/40">
+                <div className="h-full flex items-center justify-center text-base-content/40 bg-base-100">
                   <div className="text-center">
-                    <VideoIcon className="size-12 mx-auto mb-3 opacity-30" />
+                    <VideoIcon className="size-12 mx-auto mb-3 opacity-30 animate-pulse" />
                     <p className="text-lg font-medium">Select a conversation</p>
                     <p className="text-sm mt-1">Choose a friend from the list to start chatting</p>
                   </div>

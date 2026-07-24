@@ -67,62 +67,6 @@ const HomePage = ({ onThemeChange, currentTheme }) => {
     <Layout showSidebar onThemeChange={onThemeChange} currentTheme={currentTheme}>
       <div className="container mx-auto p-6 space-y-10 max-w-6xl">
 
-        {/* Header row */}
-        <div className="flex items-center justify-between">
-          <div />
-          {/* Friend Requests Button */}
-          <div className="dropdown dropdown-end">
-            <button tabIndex={0} className="btn btn-outline btn-sm gap-2 rounded-full">
-              <UserPlusIcon className="size-4" />
-              Friend Requests
-              {incomingRequests.length > 0 && (
-                <span className="badge badge-primary badge-sm">{incomingRequests.length}</span>
-              )}
-            </button>
-            <div
-              tabIndex={0}
-              className="dropdown-content bg-base-200 border border-base-300 rounded-xl shadow-2xl p-4 w-80 mt-2 z-50"
-            >
-              <h3 className="font-semibold mb-3 text-base">Incoming Requests</h3>
-              {incomingRequests.length === 0 ? (
-                <p className="text-sm text-base-content/60 text-center py-3">No pending requests</p>
-              ) : (
-                <div className="space-y-3">
-                  {incomingRequests.map((req) => (
-                    <div key={req._id} className="flex items-center gap-3">
-                      <div className="avatar">
-                        <div className="w-10 rounded-full">
-                          <img src={getAvatarUrl(req.sender?.profilePic, req.sender?.fullName)} alt={req.sender?.fullName} />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{req.sender?.fullName}</p>
-                        <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {req.sender?.nativeLanguage && (
-                            <span className="badge badge-xs">🗣️ {req.sender.nativeLanguage}</span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => acceptRequest(req._id)}
-                        disabled={acceptPending}
-                        className="btn btn-primary btn-xs rounded-full"
-                      >
-                        {acceptPending ? (
-                          <LoaderIcon className="size-3 animate-spin" />
-                        ) : (
-                          <UserCheckIcon className="size-3" />
-                        )}
-                        Accept
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* YOUR FRIENDS */}
         <section>
           <h2 className="text-2xl font-bold mb-4">Your Friends</h2>

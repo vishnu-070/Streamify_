@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
+import { streamClient } from './lib/stream';
+import toast from 'react-hot-toast';
 
 import HomePage from './pages/HomePage.jsx';
 import FriendsPage from './pages/FriendsPage.jsx';
@@ -15,6 +18,31 @@ import PageLoader from './components/PageLoader.jsx';
 
 const App = () => {
   const { authUser, isLoading } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!authUser) return;
+
+    const handleEvent = (event) => {
+      if (event.type === 'friend_request_received') {
+        queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+        queryClient.invalidateQueries({ queryKey: ['recommendedUsers'] });
+        toast.success('New friend request received! 🔔');
+      } else if (event.type === 'friend_request_accepted') {
+        queryClient.invalidateQueries({ queryKey: ['friends'] });
+        queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+        queryClient.invalidateQueries({ queryKey: ['recommendedUsers'] });
+        queryClient.invalidateQueries({ queryKey: ['outgoingRequests'] });
+        toast.success('Your friend request was accepted! 🎉');
+      }
+    };
+
+    streamClient.on(handleEvent);
+
+    return () => {
+      streamClient.off(handleEvent);
+    };
+  }, [authUser, queryClient]);
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('streamify-theme') || 'night';
