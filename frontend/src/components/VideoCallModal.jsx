@@ -232,20 +232,48 @@ const VideoCallModal = ({ authUser, token, channelId, callId, messageId, targetU
     if (!streamClient) return;
 
     const handleSignaling = (event) => {
-      if (event.type === 'call_declined' && event.callId === callId) {
+      // 1. Check custom signaling events
+      const eventType = event.type || event.custom?.type || event.custom_data?.type;
+      const receivedCallId = event.callId || event.custom?.callId || event.custom_data?.callId;
+      if (eventType === 'call_declined' && receivedCallId === callId) {
         setError('Call Declined');
         setTimeout(() => {
           handleLeave();
         }, 2000);
       }
+
+      // 2. Check message updates in-place status
+      if (event.type === 'message.updated' && event.message && event.message.id === messageId) {
+        const invite = event.message.attachments?.find((a) => a.type === 'video_call_invite');
+        if (invite) {
+          if (invite.status === 'declined') {
+            setError('Call Declined');
+            setTimeout(() => {
+              handleLeave();
+            }, 2000);
+          } else if (invite.status === 'cancelled') {
+            setError('Call Cancelled');
+            setTimeout(() => {
+              handleLeave();
+            }, 2000);
+          } else if (invite.status === 'ended') {
+            setError('Call Ended');
+            setTimeout(() => {
+              handleLeave();
+            }, 2000);
+          }
+        }
+      }
     };
 
     streamClient.on(handleSignaling);
+    streamClient.on('message.updated', handleSignaling);
 
     return () => {
       streamClient.off(handleSignaling);
+      streamClient.off('message.updated', handleSignaling);
     };
-  }, [callId, handleLeave]);
+  }, [callId, messageId, handleLeave]);
 
   useEffect(() => {
     if (!authUser || !token || !channelId || !callId) return;
