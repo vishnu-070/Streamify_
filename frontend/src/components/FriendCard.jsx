@@ -20,7 +20,7 @@ const FriendCard = ({ friend }) => {
         {/* Language badges */}
         <div className="flex flex-wrap gap-2 mb-4">
           {friend.nativeLanguage && (
-            <span className="badge badge-md text-xs bg-teal-900/40 border border-teal-500/20 text-teal-300 gap-1.5 px-3 py-1 rounded-full font-medium">
+            <span className="badge badge-md text-xs bg-primary/10 border border-primary/20 text-primary gap-1.5 px-3 py-1 rounded-full font-medium">
               {getLanguageFlag(friend.nativeLanguage)} Native: {friend.nativeLanguage}
             </span>
           )}

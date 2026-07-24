@@ -146,9 +146,8 @@ const Navbar = ({ onThemeChange, currentTheme }) => {
               {CURATED_THEMES.map((theme) => (
                 <li key={theme.id}>
                   <button
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full ${
-                      currentTheme === theme.id ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-base-300'
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full ${currentTheme === theme.id ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-base-300'
+                      }`}
                     onClick={() => onThemeChange(theme.id)}
                   >
                     <span
