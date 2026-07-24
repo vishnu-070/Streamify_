@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { axiosInstance } from '../lib/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -37,10 +37,18 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
   const { authUser } = useAuth();
   const { logout } = useLogout();
   const { userId: targetUserId } = useParams();
+  const [searchParams] = useSearchParams();
+  const joinCallParam = searchParams.get('joinCall') === 'true';
 
   const [clientReady, setClientReady] = useState(false);
   const [activeChannel, setActiveChannel] = useState(null);
   const [inCall, setInCall] = useState(false);
+
+  useEffect(() => {
+    if (activeChannel && joinCallParam) {
+      setInCall(true);
+    }
+  }, [activeChannel, joinCallParam]);
 
   // Fetch Stream token (used for both chat AND video)
   const { data: tokenData } = useQuery({
@@ -172,11 +180,27 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
     const { message } = useMessageContext();
     const invite = message.attachments?.find((a) => a.type === 'video_call_invite');
 
+    const [declined, setDeclined] = useState(() => {
+      try {
+        return JSON.parse(localStorage.getItem('declined-calls') || '[]');
+      } catch {
+        return [];
+      }
+    });
+
+    const isDeclined = invite ? declined.includes(invite.callId) : false;
+
+    const handleDecline = (callId) => {
+      const updated = [...declined, callId];
+      setDeclined(updated);
+      localStorage.setItem('declined-calls', JSON.stringify(updated));
+    };
+
     if (invite) {
       return (
         <div className="flex justify-center my-3">
           <div className="bg-base-200 border border-primary/20 rounded-2xl p-4 shadow-md text-center max-w-xs w-full space-y-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary animate-pulse">
+            <div className={`w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary ${!isDeclined ? 'animate-pulse' : ''}`}>
               <VideoIcon className="size-5" />
             </div>
             <div>
@@ -185,13 +209,30 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
                 Started by {message.user?.name || 'User'}
               </p>
             </div>
-            <button
-              onClick={() => setInCall(true)}
-              className="btn btn-primary btn-sm rounded-full w-full gap-1.5"
-            >
-              <VideoIcon className="size-3.5" />
-              Join Call
-            </button>
+            {isDeclined ? (
+              <button
+                disabled
+                className="btn btn-ghost btn-sm rounded-full w-full border border-base-300 text-base-content/40 cursor-not-allowed"
+              >
+                Call Declined
+              </button>
+            ) : (
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => handleDecline(invite.callId)}
+                  className="btn btn-error btn-outline btn-sm rounded-full flex-1"
+                >
+                  Decline
+                </button>
+                <button
+                  onClick={() => setInCall(true)}
+                  className="btn btn-primary btn-sm rounded-full flex-1 gap-1"
+                >
+                  <VideoIcon className="size-3.5" />
+                  Join
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );

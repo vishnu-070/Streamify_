@@ -32,20 +32,20 @@ const UserCard = ({ user, hasRequested }) => {
   });
 
   return (
-    <div className="card bg-base-200/50 backdrop-blur-md border border-base-content/10 hover:border-primary/45 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden">
+    <div className="card bg-base-200 border border-base-300 hover:border-primary/40 hover:shadow-lg transition-all duration-200 rounded-xl">
       <div className="card-body p-6 gap-4">
         {/* Header: avatar + name + location */}
         <div className="flex items-start gap-4">
           <div className="avatar">
-            <div className="w-16 h-16 rounded-2xl ring-4 ring-primary/10 overflow-hidden shadow-md">
+            <div className="w-14 h-14 rounded-full ring-2 ring-primary/20 overflow-hidden shadow-sm">
               <img src={getAvatarUrl(user.profilePic, user.fullName)} alt={user.fullName} className="object-cover" />
             </div>
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <h3 className="font-bold text-lg text-base-content truncate">{user.fullName}</h3>
+            <h3 className="font-bold text-base text-base-content truncate">{user.fullName}</h3>
             {user.location ? (
-              <p className="text-xs text-base-content/50 flex items-center gap-1 mt-1 font-medium">
-                <MapPinIcon className="size-3.5 text-primary/75" />
+              <p className="text-xs text-base-content/60 flex items-center gap-1 mt-1 font-medium">
+                <MapPinIcon className="size-3 text-primary/70" />
                 {user.location}
               </p>
             ) : (
@@ -57,12 +57,12 @@ const UserCard = ({ user, hasRequested }) => {
         {/* Language badges */}
         <div className="flex flex-wrap gap-2 pt-1">
           {user.nativeLanguage && (
-            <span className="badge badge-md text-xs bg-primary/10 border-none text-primary gap-1.5 px-3 py-1.5 rounded-lg font-semibold">
+            <span className="badge badge-md text-xs bg-primary/10 border border-primary/20 text-primary gap-1.5 px-3 py-1.5 rounded-full font-semibold">
               {getLanguageFlag(user.nativeLanguage)} Native: {user.nativeLanguage}
             </span>
           )}
           {user.learningLanguage && (
-            <span className="badge badge-md text-xs bg-secondary/10 border-none text-secondary gap-1.5 px-3 py-1.5 rounded-lg font-semibold">
+            <span className="badge badge-md text-xs bg-secondary/10 border border-secondary/20 text-secondary gap-1.5 px-3 py-1.5 rounded-full font-semibold">
               {getLanguageFlag(user.learningLanguage)} Learning: {user.learningLanguage}
             </span>
           )}
@@ -70,19 +70,19 @@ const UserCard = ({ user, hasRequested }) => {
 
         {/* Bio */}
         {user.bio ? (
-          <p className="text-sm text-base-content/70 line-clamp-2 min-h-10 leading-relaxed text-left">{user.bio}</p>
+          <p className="text-sm text-base-content/70 line-clamp-2 min-h-10 leading-relaxed text-left mt-1">{user.bio}</p>
         ) : (
-          <p className="text-sm text-base-content/40 italic min-h-10 text-left">No bio provided yet.</p>
+          <p className="text-sm text-base-content/45 italic min-h-10 text-left mt-1">No bio provided yet.</p>
         )}
 
         {/* Action Button */}
         <button
           onClick={() => sendRequest()}
           disabled={isPending || hasRequested}
-          className={`btn btn-sm w-full rounded-xl gap-2 mt-2 h-10 font-bold transition-all ${
+          className={`btn btn-sm w-full rounded-full gap-2 mt-3 h-10 font-bold transition-all ${
             hasRequested 
-              ? 'btn-success btn-outline border-2 hover:bg-success/10' 
-              : 'btn-primary shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/35'
+              ? 'btn-success btn-outline border-2' 
+              : 'btn-primary'
           }`}
         >
           {isPending ? (

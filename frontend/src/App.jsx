@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Route, Routes, Navigate } from 'react-router';
+import { Route, Routes, Navigate, useNavigate } from 'react-router';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,6 +19,8 @@ import PageLoader from './components/PageLoader.jsx';
 const App = () => {
   const { authUser, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [incomingCall, setIncomingCall] = useState(null);
 
   useEffect(() => {
     if (!authUser) return;
@@ -37,10 +39,33 @@ const App = () => {
       }
     };
 
+    const handleNewMessage = (event) => {
+      const invite = event.message.attachments?.find((a) => a.type === 'video_call_invite');
+      if (invite) {
+        if (event.message.user.id !== streamClient.userID) {
+          let declined = [];
+          try {
+            declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
+          } catch {}
+
+          if (!declined.includes(invite.callId)) {
+            setIncomingCall({
+              callId: invite.callId,
+              senderName: event.message.user.name || event.message.user.id,
+              senderAvatar: event.message.user.image,
+              userId: event.message.user.id,
+            });
+          }
+        }
+      }
+    };
+
     streamClient.on(handleEvent);
+    streamClient.on('message.new', handleNewMessage);
 
     return () => {
       streamClient.off(handleEvent);
+      streamClient.off('message.new', handleNewMessage);
     };
   }, [authUser, queryClient]);
 
@@ -61,6 +86,50 @@ const App = () => {
 
   return (
     <div className="min-h-screen" data-theme={theme}>
+      {incomingCall && (
+        <div className="fixed top-4 right-4 z-50 bg-base-200 border-2 border-primary rounded-2xl p-4 shadow-2xl w-80 max-w-sm transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="avatar ring-2 ring-primary ring-offset-2 rounded-full relative">
+              <div className="w-12 rounded-full">
+                <img src={incomingCall.senderAvatar || 'https://avatar.iran.liara.run/public'} alt={incomingCall.senderName} />
+              </div>
+              <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-success ring-2 ring-base-100 animate-ping" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-base-content truncate text-left">{incomingCall.senderName}</p>
+              <p className="text-xs text-base-content/70 animate-pulse text-left">Incoming video call...</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mt-4 justify-end">
+            <button
+              onClick={() => {
+                let declined = [];
+                try {
+                  declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
+                } catch {}
+                declined.push(incomingCall.callId);
+                localStorage.setItem('declined-calls', JSON.stringify(declined));
+                setIncomingCall(null);
+              }}
+              className="btn btn-error btn-xs rounded-xl px-4 gap-1 font-bold h-9"
+            >
+              Decline
+            </button>
+            <button
+              onClick={() => {
+                navigate(`/chat/${incomingCall.userId}?joinCall=true`);
+                setIncomingCall(null);
+              }}
+              className="btn btn-success btn-xs rounded-xl px-4 gap-1 font-bold h-9 text-white"
+            >
+              Join
+            </button>
+          </div>
+        </div>
+      )}
+
       <Routes>
         {/* Public routes */}
         <Route
