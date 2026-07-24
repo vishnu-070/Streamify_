@@ -157,10 +157,17 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
           </div>
           <div>
             <h3 className="font-bold text-sm text-base-content leading-tight">{displayName}</h3>
-            <p className="text-xs text-success flex items-center gap-1 mt-0.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-success"></span>
-              Online
-            </p>
+            {otherMember?.user?.online ? (
+              <p className="text-xs text-success flex items-center gap-1 mt-0.5 font-semibold">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+                Online
+              </p>
+            ) : (
+              <p className="text-xs text-base-content/40 flex items-center gap-1 mt-0.5 font-medium">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-base-content/30"></span>
+                Offline
+              </p>
+            )}
           </div>
         </div>
         
@@ -189,6 +196,7 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
     });
 
     const isDeclined = invite ? declined.includes(invite.callId) : false;
+    const isMyMessage = message.user?.id === streamClient.userID;
 
     const handleDecline = (callId) => {
       const updated = [...declined, callId];
@@ -198,18 +206,37 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
 
     if (invite) {
       return (
-        <div className="flex justify-center my-3">
-          <div className="bg-base-200 border border-primary/20 rounded-2xl p-4 shadow-md text-center max-w-xs w-full space-y-3">
-            <div className={`w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary ${!isDeclined ? 'animate-pulse' : ''}`}>
+        <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} my-3 w-full px-4`}>
+          <div className={`border rounded-2xl p-4 shadow-md text-center max-w-xs w-full space-y-3 ${
+            isMyMessage 
+              ? 'bg-primary/5 border-primary/30 text-right' 
+              : 'bg-base-200 border-base-300 text-left'
+          }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-primary ${
+              isMyMessage ? 'ml-auto bg-primary/10' : 'mx-0 bg-base-300'
+            } ${!isDeclined ? 'animate-pulse' : ''}`}>
               <VideoIcon className="size-5" />
             </div>
-            <div>
-              <h4 className="font-bold text-sm">Video Call</h4>
+            
+            <div className={isMyMessage ? 'text-right' : 'text-left'}>
+              <h4 className="font-bold text-sm">
+                {isMyMessage ? 'Video Call Started' : 'Video Call Invitation'}
+              </h4>
               <p className="text-xs text-base-content/60 mt-1">
-                Started by {message.user?.name || 'User'}
+                {isMyMessage ? 'Waiting for partner to join...' : `Started by ${message.user?.name || 'User'}`}
               </p>
             </div>
-            {isDeclined ? (
+
+            {/* Actions */}
+            {isMyMessage ? (
+              <button
+                onClick={() => setInCall(true)}
+                className="btn btn-primary btn-sm rounded-full w-full gap-1.5"
+              >
+                <VideoIcon className="size-3.5" />
+                Join Call
+              </button>
+            ) : isDeclined ? (
               <button
                 disabled
                 className="btn btn-ghost btn-sm rounded-full w-full border border-base-300 text-base-content/40 cursor-not-allowed"
@@ -220,13 +247,13 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
               <div className="flex gap-2 w-full">
                 <button
                   onClick={() => handleDecline(invite.callId)}
-                  className="btn btn-error btn-outline btn-sm rounded-full flex-1"
+                  className="btn btn-error btn-outline btn-sm rounded-full flex-1 font-semibold"
                 >
                   Decline
                 </button>
                 <button
                   onClick={() => setInCall(true)}
-                  className="btn btn-primary btn-sm rounded-full flex-1 gap-1"
+                  className="btn btn-primary btn-sm rounded-full flex-1 gap-1 font-semibold"
                 >
                   <VideoIcon className="size-3.5" />
                   Join
