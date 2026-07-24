@@ -12,6 +12,7 @@ import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { X, Loader, Mic, MicOff, Video, VideoOff, Monitor, PhoneOff } from 'lucide-react';
 import { getAvatarUrl } from '../lib/avatars';
 import { streamClient } from '../lib/stream';
+import toast from 'react-hot-toast';
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY || 'n5psykq5nde3';
 
@@ -34,14 +35,38 @@ const CallUI = ({ onLeave, callId, messageId }) => {
 
   const [partnerHasJoined, setPartnerHasJoined] = useState(false);
 
-  // Auto-leave when call ends
+  // Auto-leave when call ends or is rejected
   useEffect(() => {
-    if (callingState === CallingState.LEFT) {
+    if (callingState === CallingState.LEFT || callingState === CallingState.REJECTED) {
+      if (callingState === CallingState.REJECTED) {
+        toast.error('Call rejected by partner.');
+      }
       onLeave();
     }
   }, [callingState, onLeave]);
 
   const otherParticipants = participants.filter((p) => p.userId !== call?.currentUserId);
+
+  // 30 seconds calling timeout
+  useEffect(() => {
+    if (callingState === CallingState.JOINED && !partnerHasJoined) {
+      const timer = setTimeout(async () => {
+        // Timeout reached! Update message to missed call/timeout in-place
+        if (streamClient && callId && messageId) {
+          streamClient.updateMessage({
+            id: messageId,
+            text: '📞 Missed Call',
+            attachments: [{ type: 'video_call_invite', status: 'timeout', callId }],
+          }).catch(console.error);
+        }
+
+        toast.error('No answer. Call timed out.');
+        onLeave();
+      }, 30000); // 30 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [callingState, partnerHasJoined, callId, messageId, onLeave]);
 
   useEffect(() => {
     if (otherParticipants.length > 0) {
@@ -55,6 +80,7 @@ const CallUI = ({ onLeave, callId, messageId }) => {
         }).catch(console.error);
       }
     } else if (partnerHasJoined && otherParticipants.length === 0) {
+      toast.error('Partner left the call.');
       onLeave();
     }
   }, [otherParticipants, partnerHasJoined, onLeave, callId, messageId]);
@@ -236,6 +262,7 @@ const VideoCallModal = ({ authUser, token, channelId, callId, messageId, targetU
       const eventType = event.type || event.custom?.type || event.custom_data?.type;
       const receivedCallId = event.callId || event.custom?.callId || event.custom_data?.callId;
       if (eventType === 'call_declined' && receivedCallId === callId) {
+        toast.error('Call declined by partner.');
         setError('Call Declined');
         setTimeout(() => {
           handleLeave();
@@ -247,16 +274,19 @@ const VideoCallModal = ({ authUser, token, channelId, callId, messageId, targetU
         const invite = event.message.attachments?.find((a) => a.type === 'video_call_invite');
         if (invite) {
           if (invite.status === 'declined') {
+            toast.error('Call declined by partner.');
             setError('Call Declined');
             setTimeout(() => {
               handleLeave();
             }, 2000);
           } else if (invite.status === 'cancelled') {
+            toast.error('Call cancelled.');
             setError('Call Cancelled');
             setTimeout(() => {
               handleLeave();
             }, 2000);
           } else if (invite.status === 'ended') {
+            toast.error('Call ended.');
             setError('Call Ended');
             setTimeout(() => {
               handleLeave();

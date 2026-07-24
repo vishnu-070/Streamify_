@@ -46,7 +46,34 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
   const [inCall, setInCall] = useState(false);
   const [activeCallId, setActiveCallId] = useState(null);
   const [activeCallMessageId, setActiveCallMessageId] = useState(null);
-  const clientReady = !!streamClient.userID;
+  const [isClientReady, setIsClientReady] = useState(!!streamClient.userID);
+
+  useEffect(() => {
+    if (streamClient.userID) {
+      setIsClientReady(true);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (streamClient.userID) {
+        setIsClientReady(true);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    const handleConnectionChanged = () => {
+      if (streamClient.userID) {
+        setIsClientReady(true);
+        clearInterval(interval);
+      }
+    };
+
+    streamClient.on('connection.changed', handleConnectionChanged);
+    return () => {
+      clearInterval(interval);
+      streamClient.off('connection.changed', handleConnectionChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeChannel && joinCallParam && callIdParam && messageIdParam) {
@@ -70,20 +97,24 @@ const ChatPage = ({ onThemeChange, currentTheme }) => {
 
   // Create / get channel when a targetUserId is provided (from Message button)
   useEffect(() => {
-    if (!clientReady || !targetUserId || !authUser) return;
+    if (!isClientReady || !targetUserId || !authUser) return;
 
     const initChannel = async () => {
-      const channel = streamClient.channel('messaging', {
-        members: [authUser._id, targetUserId],
-      });
-      await channel.watch();
-      setActiveChannel(channel);
+      try {
+        const channel = streamClient.channel('messaging', {
+          members: [authUser._id, targetUserId],
+        });
+        await channel.watch();
+        setActiveChannel(channel);
+      } catch (err) {
+        console.error("Error watching channel on ChatPage:", err);
+      }
     };
 
     initChannel();
-  }, [clientReady, targetUserId, authUser]);
+  }, [isClientReady, targetUserId, authUser]);
 
-  if (!clientReady) {
+  if (!isClientReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
         <div className="text-center space-y-3">

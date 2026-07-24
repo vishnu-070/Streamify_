@@ -128,18 +128,23 @@ const App = () => {
     };
 
     const handleSignalingEvent = (event) => {
-      if (event.type === 'call_declined') {
-        let declined = [];
-        try {
-          declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
-        } catch {}
-        if (!declined.includes(event.callId)) {
-          declined.push(event.callId);
-          localStorage.setItem('declined-calls', JSON.stringify(declined));
+      const eventType = event.type || event.custom?.type || event.custom_data?.type;
+      const receivedCallId = event.callId || event.custom?.callId || event.custom_data?.callId;
+
+      if (eventType === 'call_declined' || eventType === 'call_timeout') {
+        if (eventType === 'call_declined' && receivedCallId) {
+          let declined = [];
+          try {
+            declined = JSON.parse(localStorage.getItem('declined-calls') || '[]');
+          } catch {}
+          if (!declined.includes(receivedCallId)) {
+            declined.push(receivedCallId);
+            localStorage.setItem('declined-calls', JSON.stringify(declined));
+          }
         }
 
         setIncomingCall((prev) => {
-          if (prev && prev.callId === event.callId) {
+          if (prev && prev.callId === receivedCallId) {
             return null;
           }
           return prev;
@@ -221,7 +226,7 @@ const App = () => {
             </button>
             <button
               onClick={() => {
-                navigate(`/chat/${incomingCall.userId}?joinCall=true&callId=${incomingCall.callId}`);
+                navigate(`/chat/${incomingCall.userId}?joinCall=true&callId=${incomingCall.callId}&messageId=${incomingCall.messageId}`);
                 setIncomingCall(null);
               }}
               className="btn btn-success btn-xs rounded-xl px-4 gap-1 font-bold h-9 text-white"
